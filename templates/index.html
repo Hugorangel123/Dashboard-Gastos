@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard de Gastos</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#F9F9F8;--surface:#fff;--border:#E8E6E0;--text:#1A1A18;--muted:#6B6B67;--accent:#185FA5;--green:#0F6E56;--red:#A32D2D}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+nav{background:var(--surface);border-bottom:0.5px solid var(--border);padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
+nav h1{font-size:15px;font-weight:600;letter-spacing:-0.01em}
+#mes-selector{font-size:13px;border:0.5px solid var(--border);border-radius:6px;padding:4px 10px;background:var(--surface);color:var(--text);cursor:pointer}
+.main{max-width:1000px;margin:0 auto;padding:2rem}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:2rem}
+.card{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:1.25rem}
+.card label{font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);display:block;margin-bottom:6px}
+.card .amount{font-size:26px;font-weight:500;letter-spacing:-0.02em}
+.card.ingresos .amount{color:var(--green)}
+.card.gastos .amount{color:var(--red)}
+.card.balance .amount{color:var(--accent)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:2rem}
+.box{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:1.25rem}
+.box h2{font-size:13px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1rem}
+canvas{max-height:220px}
+.form-section{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:2rem}
+.form-section h2{font-size:13px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1rem}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;color:var(--muted)}
+.field input,.field select,.field textarea{border:0.5px solid var(--border);border-radius:6px;padding:7px 10px;font-size:14px;font-family:inherit;background:var(--bg);color:var(--text);width:100%}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.btn{padding:8px 18px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;border:none;font-family:inherit}
+.btn-primary{background:var(--text);color:#fff}
+.btn-primary:hover{opacity:0.85}
+.btn-ingreso{background:#E1F5EE;color:#085041;border:0.5px solid #9FE1CB}
+.btn-ingreso.active,.btn-ingreso:hover{background:#0F6E56;color:#fff}
+.btn-gasto{background:#FCEBEB;color:#791F1F;border:0.5px solid #F7C1C1}
+.btn-gasto.active,.btn-gasto:hover{background:#A32D2D;color:#fff}
+.tipo-btns{display:flex;gap:8px}
+.tabla-section{background:var(--surface);border:0.5px solid var(--border);border-radius:12px;padding:1.5rem}
+.tabla-section h2{font-size:13px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:1rem}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:6px 10px;color:var(--muted);font-weight:400;border-bottom:0.5px solid var(--border)}
+td{padding:8px 10px;border-bottom:0.5px solid var(--border)}
+tr:last-child td{border-bottom:none}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px}
+.badge-ingreso{background:#E1F5EE;color:#085041}
+.badge-gasto{background:#FCEBEB;color:#791F1F}
+.btn-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px;border-radius:4px}
+.btn-del:hover{background:#FCEBEB;color:var(--red)}
+@media(max-width:640px){.cards{grid-template-columns:1fr}.grid2{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<nav>
+  <h1>Mis Finanzas</h1>
+  <input type="month" id="mes-selector"/>
+</nav>
+
+<div class="main">
+  <div class="cards">
+    <div class="card ingresos">
+      <label>Ingresos del mes</label>
+      <div class="amount" id="total-ingresos">$0.00</div>
+    </div>
+    <div class="card gastos">
+      <label>Gastos del mes</label>
+      <div class="amount" id="total-gastos">$0.00</div>
+    </div>
+    <div class="card balance">
+      <label>Balance</label>
+      <div class="amount" id="total-balance">$0.00</div>
+    </div>
+  </div>
+
+  <div class="form-section">
+    <h2>Nueva transacción</h2>
+    <form action="/agregar" method="POST">
+      <div class="form-grid">
+        <div class="field">
+          <label>Tipo</label>
+          <div class="tipo-btns">
+            <button type="button" class="btn btn-ingreso active" onclick="setTipo('ingreso',this)">Ingreso</button>
+            <button type="button" class="btn btn-gasto" onclick="setTipo('gasto',this)">Gasto</button>
+          </div>
+          <input type="hidden" name="tipo" id="tipo-input" value="ingreso"/>
+        </div>
+        <div class="field">
+          <label>Categoría</label>
+          <select name="categoria" required>
+            {% for c in categorias %}
+            <option>{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label>Descripción</label>
+          <input type="text" name="descripcion" placeholder="Ej: Súper del lunes"/>
+        </div>
+        <div class="field">
+          <label>Monto ($)</label>
+          <input type="number" name="monto" min="0.01" step="0.01" placeholder="0.00" required/>
+        </div>
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" name="fecha" id="fecha-input" required/>
+        </div>
+        <div class="field" style="justify-content:flex-end">
+          <button type="submit" class="btn btn-primary">Agregar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="grid2">
+    <div class="box">
+      <h2>Gastos por categoría</h2>
+      <canvas id="chart-categorias"></canvas>
+    </div>
+    <div class="box">
+      <h2>Flujo del mes</h2>
+      <canvas id="chart-diario"></canvas>
+    </div>
+  </div>
+
+  <div class="tabla-section">
+    <h2>Últimas transacciones</h2>
+    <table id="tabla-transacciones">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Categoría</th>
+          <th>Descripción</th>
+          <th style="text-align:right">Monto</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let chartCat = null, chartDiario = null;
+
+const fmtMoney = n => '$' + Number(n).toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+function setTipo(tipo, btn) {
+  document.getElementById('tipo-input').value = tipo;
+  document.querySelectorAll('.tipo-btns .btn').forEach(b => {
+    b.classList.remove('active');
+    if(tipo==='ingreso') b.classList.toggle('btn-ingreso', true);
+  });
+  btn.classList.add('active');
+}
+
+function getMes() {
+  return document.getElementById('mes-selector').value;
+}
+
+async function cargarDatos() {
+  const res = await fetch('/api/resumen?mes=' + getMes());
+  const d = await res.json();
+
+  document.getElementById('total-ingresos').textContent = fmtMoney(d.ingresos);
+  document.getElementById('total-gastos').textContent = fmtMoney(d.gastos);
+  const bal = document.getElementById('total-balance');
+  bal.textContent = fmtMoney(d.balance);
+  bal.style.color = d.balance >= 0 ? 'var(--green)' : 'var(--red)';
+
+  // Gráfica categorías
+  const cats = d.por_categoria;
+  const colores = ['#185FA5','#0F6E56','#854F0B','#993556','#534AB7','#993C1D','#3B6D11','#5F5E5A'];
+  if(chartCat) chartCat.destroy();
+  chartCat = new Chart(document.getElementById('chart-categorias'), {
+    type: 'doughnut',
+    data: {
+      labels: cats.map(c => c.categoria),
+      datasets:[{data: cats.map(c => c.total), backgroundColor: colores.slice(0, cats.length), borderWidth:0}]
+    },
+    options:{plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:10}}},cutout:'65%'}
+  });
+
+  // Gráfica diario
+  const fechas = [...new Set(d.diario.map(r => r.fecha))].sort();
+  const ingDia = fechas.map(f => { const r = d.diario.find(x=>x.fecha===f&&x.tipo==='ingreso'); return r?r.total:0; });
+  const gastDia = fechas.map(f => { const r = d.diario.find(x=>x.fecha===f&&x.tipo==='gasto'); return r?r.total:0; });
+  if(chartDiario) chartDiario.destroy();
+  chartDiario = new Chart(document.getElementById('chart-diario'), {
+    type: 'bar',
+    data: {
+      labels: fechas.map(f => f.slice(8)),
+      datasets:[
+        {label:'Ingresos', data:ingDia, backgroundColor:'#9FE1CB', borderRadius:4},
+        {label:'Gastos', data:gastDia, backgroundColor:'#F7C1C1', borderRadius:4}
+      ]
+    },
+    options:{plugins:{legend:{labels:{font:{size:11},boxWidth:10}}},scales:{x:{grid:{display:false}},y:{grid:{color:'#F0EEE8'}}}}
+  });
+
+  // Tabla
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  d.ultimas.forEach(t => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${t.fecha}</td>
+      <td><span class="badge badge-${t.tipo}">${t.tipo}</span></td>
+      <td>${t.categoria}</td>
+      <td style="color:var(--muted)">${t.descripcion||'—'}</td>
+      <td style="text-align:right;font-weight:500;color:${t.tipo==='ingreso'?'var(--green)':'var(--red)'}">${fmtMoney(t.monto)}</td>
+      <td>
+        <form action="/eliminar/${t.id}" method="POST" onsubmit="return confirm('¿Eliminar?')">
+          <button class="btn-del" type="submit">✕</button>
+        </form>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// Inicializar
+const hoy = new Date();
+const mesActual = hoy.toISOString().slice(0,7);
+document.getElementById('mes-selector').value = mesActual;
+document.getElementById('fecha-input').value = hoy.toISOString().slice(0,10);
+document.getElementById('mes-selector').addEventListener('change', cargarDatos);
+cargarDatos();
+</script>
+</body>
+</html>
