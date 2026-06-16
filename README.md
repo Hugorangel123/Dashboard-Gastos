@@ -17,7 +17,7 @@ App web para registrar y visualizar ingresos y gastos personales. Construida con
 ### 1. Clona o descarga el proyecto
 
 ```bash
-git clone https://github.com/TU_USUARIO/dashboard-gastos.git
+git clone https://github.com/Hugorangel123/Dashboard-Gastos.git
 cd dashboard-gastos
 ```
 
